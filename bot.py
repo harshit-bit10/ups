@@ -15,7 +15,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 # Bot API credentials
 API_ID = int(os.environ.get("API_ID", "29234663"))
-API_HASH = os.environ.get("API_HASH", "94235bdf61b1b42e67b113b031db5ba5"))
+API_HASH = os.environ.get("API_HASH", "94235bdf61b1b42e67b113b031db5ba5")
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "8150798398:AAHdkI-g7U1A32B9IkKyLMvA8wf_dqqvOM")
 USE_CUDA = os.environ.get("USE_CUDA", "True") == "True"
 
