@@ -22,6 +22,10 @@ USE_CUDA = os.environ.get("USE_CUDA", "True") == "True"
 # Initialize bot
 bot = Client("ImageUpscalerBot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
+# Define authorized users and groups
+sudo_users = {6066102279}  # Replace with actual user IDs for PM Access
+sudo_groups = {-1002337988665}  # Replace with actual group chat IDs For Group Chat Access
+
 # Load RealESRGAN model
 model = RealESRGAN("cuda" if USE_CUDA else "cpu", scale=4)
 try:
@@ -35,7 +39,41 @@ def generate_unique_filename(extension="png"):
     random_string = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
     return f"SharkToonsIndia_{random_string}.{extension}"
 
+async def is_user_sudo(client, user_id):
+    # Check if the user is in the sudo_users list
+    if user_id in sudo_users:
+        return True
 
+    # Check if the user is a member of any of the sudo_groups
+    for group_id in sudo_users:
+        try:
+            user_id = await client.user_id(user_id)
+            # Allow access if the user is found in the group
+            return True  # If the user is found in the group, grant access
+        except Exception as e:
+            print(f"Error checking group membership for group {user_id}: {e}")
+
+    return False
+
+    # Check if the user is a member of any of the sudo_groups
+    for group_id in sudo_groups:
+        try:
+            chat_member = await client.get_chat_member(group_id, user_id)
+            # Allow access if the user is found in the group
+            return True  # If the user is found in the group, grant access
+        except Exception as e:
+            print(f"Error checking group membership for group {group_id}: {e}")
+
+    return False
+
+def sudo_only(func):
+    async def wrapper(client, message):
+        if not await is_user_sudo(client, message.from_user.id):
+            await message.reply_text("You do not have permission to use this command.")
+            return
+        return await func(client, message)
+    return wrapper
+    
 @bot.on_message(filters.command("start"))
 async def start(client, message):
     welcome_text = (
@@ -65,6 +103,7 @@ async def close_callback(client, callback_query):
 
 
 @bot.on_message(filters.photo)
+@sudo_only
 async def upscale_image(client: Client, message: Message):
     temp_dir = tempfile.mkdtemp()
     img_path = os.path.join(temp_dir, "input.jpg")
