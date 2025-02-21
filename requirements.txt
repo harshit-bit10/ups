@@ -1,0 +1,9 @@
+pyrogram
+realesrgan
+pillow
+asyncio
+logging
+shutil
+tempfile
+random
+string
