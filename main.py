@@ -112,10 +112,11 @@ async def upscale_image(client: Client, message: Message):
     try:
         msg = await message.reply_text("⏳ Downloading image...")
         await message.download(str(img_path))
-        await msg.edit_text("🔄 Enhancing image...")
 
+        await msg.edit_text("🔄 Enhancing image...")
         img = Image.open(img_path).convert("RGB")
-        upscaled_img = upscale_image_enhanced(img)
+
+        upscaled_img = await upscale_image_enhanced(img)
         upscaled_img.save(upscaled_path)
 
         await msg.edit_text("✅ Image enhanced successfully! Uploading...")
