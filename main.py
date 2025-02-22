@@ -66,8 +66,8 @@ def upscale_and_enhance(img: Image.Image) -> Image.Image:
         
         # Apply Enhancements
         img_upscaled = ImageEnhance.Sharpness(img_upscaled).enhance(3.4)  # Increase sharpness
-        img_upscaled = ImageEnhance.Contrast(img_upscaled).enhance(1.5)  # Increase contrast
-        img_upscaled = ImageEnhance.Color(img_upscaled).enhance(1.2)  # Slightly boost colors
+        img_upscaled = ImageEnhance.Contrast(img_upscaled).enhance(1.3)  # Increase contrast
+        img_upscaled = ImageEnhance.Color(img_upscaled).enhance(1.0)  # Slightly boost colors
         
         return img_upscaled
     except Exception as e:
