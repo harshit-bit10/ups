@@ -75,7 +75,7 @@ async def upscale_image_enhanced(img_path: Path) -> Path:
         img_upscaled = Image.fromarray(cv2.cvtColor(upscaled, cv2.COLOR_BGR2RGB))
 
         # ✅ Moderate Sharpness (Natural, No Artificial Look)
-        img_upscaled = await asyncio.to_thread(ImageEnhance.Sharpness(img_upscaled).enhance, 10.5)
+        img_upscaled = await asyncio.to_thread(ImageEnhance.Sharpness(img_upscaled).enhance, 17.5)
 
         # Save upscaled image
         upscaled_path = img_path.parent / generate_unique_filename("png")
