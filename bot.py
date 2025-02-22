@@ -4,12 +4,12 @@ import tempfile
 import shutil
 import random
 import string
-import numpy as np
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
-from PIL import Image
+from PIL import Image, ImageEnhance
+import cv2
+import numpy as np
 from loguru import logger
-from super_image import EdsrModel, ImageLoader
 
 # Bot API Credentials
 API_ID = int("29234663")
@@ -23,10 +23,7 @@ bot = Client("ImageUpscalerBot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT
 SUDO_USERS = {6066102279}  # Replace with actual user IDs
 SUDO_GROUPS = {-1002337988665}  # Replace with actual group IDs
 
-# Load AI Upscaler Model
-logger.info("Loading AI upscaler model...")
-model = EdsrModel.from_pretrained('eugenesiow/edsr-base', scale=4)  # Uses EDSR model
-logger.success("Model loaded successfully.")
+logger.info("Bot is ready...")
 
 # Generate Unique Filename
 def generate_unique_filename(extension="png"):
@@ -53,16 +50,32 @@ def sudo_only(func):
         return await func(client, message)
     return wrapper
 
-# Upscale Image using `super-image`
-def upscale_image_super(img: Image.Image) -> Image.Image:
-    return ImageLoader(model)(img)  # Automatically applies AI enhancement
+# Basic Image Upscaling (No AI)
+def upscale_image_basic(img: Image.Image) -> Image.Image:
+    # Convert to OpenCV format
+    img_cv = np.array(img)
+    img_cv = cv2.cvtColor(img_cv, cv2.COLOR_RGB2BGR)
+
+    # Resize using bicubic interpolation
+    height, width = img_cv.shape[:2]
+    new_width, new_height = width * 2, height * 2  # 2x upscale
+    upscaled = cv2.resize(img_cv, (new_width, new_height), interpolation=cv2.INTER_CUBIC)
+
+    # Convert back to PIL format
+    img_upscaled = Image.fromarray(cv2.cvtColor(upscaled, cv2.COLOR_BGR2RGB))
+
+    # Enhance sharpness and contrast
+    img_upscaled = ImageEnhance.Sharpness(img_upscaled).enhance(1.5)  # Increase sharpness
+    img_upscaled = ImageEnhance.Contrast(img_upscaled).enhance(1.2)  # Increase contrast
+
+    return img_upscaled
 
 # Start Command
 @bot.on_message(filters.command("start"))
 async def start(client, message):
     await message.reply_photo(
         photo="https://telegra.ph/Shinobuv3-01-28",
-        caption="<b>✨ Welcome to SharkToonsIndia Bot!</b>\n\n🚀 Send an image to enhance it with AI!",
+        caption="<b>✨ Welcome to SharkToonsIndia Bot!</b>\n\n🚀 Send an image to enhance it!",
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("Developer", url="https://t.me/SupremeYoriichi"),
              InlineKeyboardButton("Channel", url="https://t.me/SharkToonsIndia")],
@@ -86,11 +99,11 @@ async def upscale_image(client: Client, message: Message):
     try:
         msg = await message.reply_text("⏳ Downloading image...")
         await message.download(str(img_path))
-        await msg.edit_text("🔄 Enhancing image with AI...")
+        await msg.edit_text("🔄 Enhancing image...")
 
         # Load & Upscale Image
         img = Image.open(img_path).convert("RGB")
-        upscaled_img = upscale_image_super(img)
+        upscaled_img = upscale_image_basic(img)
         upscaled_img.save(upscaled_path)
 
         await msg.edit_text("✅ Image enhanced successfully! Uploading...")
@@ -108,5 +121,7 @@ async def upscale_image(client: Client, message: Message):
         shutil.rmtree(temp_dir, ignore_errors=True)
 
 logger.info("Bot is running...")
+bot.run()
+ning...")
 bot.run()
     
