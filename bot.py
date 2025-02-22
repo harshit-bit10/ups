@@ -5,11 +5,11 @@ import shutil
 import random
 import string
 import numpy as np
-import onnxruntime as ort
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from PIL import Image
 from loguru import logger
+from super_image import EdsrModel, ImageLoader
 
 # Bot API Credentials
 API_ID = int("29234663")
@@ -23,11 +23,10 @@ bot = Client("ImageUpscalerBot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT
 SUDO_USERS = {6066102279}  # Replace with actual user IDs
 SUDO_GROUPS = {-1002337988665}  # Replace with actual group IDs
 
-# Load ONNX Model
-MODEL_PATH = "weights/RealESRGAN_x4.onnx"
-logger.info("Loading ONNX model...")
-session = ort.InferenceSession(MODEL_PATH)
-logger.success("ONNX model loaded successfully.")
+# Load AI Upscaler Model
+logger.info("Loading AI upscaler model...")
+model = EdsrModel.from_pretrained('eugenesiow/edsr-base', scale=4)  # Uses EDSR model
+logger.success("Model loaded successfully.")
 
 # Generate Unique Filename
 def generate_unique_filename(extension="png"):
@@ -54,19 +53,9 @@ def sudo_only(func):
         return await func(client, message)
     return wrapper
 
-# Upscale Image with ONNX
-def upscale_image_onnx(image: Image.Image) -> Image.Image:
-    img = np.array(image).astype(np.float32) / 255.0  # Normalize
-    img = np.expand_dims(img.transpose(2, 0, 1), axis=0)  # Convert to (1,3,H,W)
-    
-    # Run model inference
-    output = session.run(None, {"input": img})[0]
-    
-    # Post-process output
-    output = (output[0] * 255).clip(0, 255).astype(np.uint8)
-    output = output.transpose(1, 2, 0)
-    
-    return Image.fromarray(output)
+# Upscale Image using `super-image`
+def upscale_image_super(img: Image.Image) -> Image.Image:
+    return ImageLoader(model)(img)  # Automatically applies AI enhancement
 
 # Start Command
 @bot.on_message(filters.command("start"))
@@ -101,7 +90,7 @@ async def upscale_image(client: Client, message: Message):
 
         # Load & Upscale Image
         img = Image.open(img_path).convert("RGB")
-        upscaled_img = upscale_image_onnx(img)
+        upscaled_img = upscale_image_super(img)
         upscaled_img.save(upscaled_path)
 
         await msg.edit_text("✅ Image enhanced successfully! Uploading...")
