@@ -59,13 +59,13 @@ def upscale_and_enhance(img: Image.Image) -> Image.Image:
         height, width = img_cv.shape[:2]
         
         # 2x Upscaling using Lanczos interpolation for better sharpness
-        upscaled = cv2.resize(img_cv, (width * 2, height * 2), interpolation=cv2.INTER_LANCZOS4)
+        upscaled = cv2.resize(img_cv, (width * 4, height * 4), interpolation=cv2.INTER_LANCZOS4)
         
         # Convert back to PIL
         img_upscaled = Image.fromarray(cv2.cvtColor(upscaled, cv2.COLOR_BGR2RGB))
         
         # Apply Enhancements
-        img_upscaled = ImageEnhance.Sharpness(img_upscaled).enhance(8.0)  # Increase sharpness
+        img_upscaled = ImageEnhance.Sharpness(img_upscaled).enhance(10.0)  # Increase sharpness
         img_upscaled = ImageEnhance.Contrast(img_upscaled).enhance(1.1)  # Increase contrast
         img_upscaled = ImageEnhance.Color(img_upscaled).enhance(1.0)  # Slightly boost colors
         
