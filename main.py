@@ -8,7 +8,7 @@ import cv2
 import numpy as np
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
-from PIL import Image
+from PIL import Image, ImageEnhance
 from loguru import logger
 
 # Bot API Credentials
@@ -19,63 +19,33 @@ BOT_TOKEN = "7335265361:AAGU69st_vK3kVZIy1lAYSOejGB8EaMgBxQ"
 # Initialize bot
 bot = Client("ImageUpscalerBot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
-# Sudo Users & Groups
-SUDO_USERS = {6066102279}
-SUDO_GROUPS = {-1002337988665}
-
 logger.info("Bot is starting...")
 
-# Generate a unique filename
+# Utility function to generate a unique filename
 def generate_unique_filename(extension="png") -> str:
     return f"SharkToonsIndia_{''.join(random.choices(string.ascii_letters + string.digits, k=8))}.{extension}"
 
-# Check if user has sudo access
-async def is_user_sudo(client, user_id: int) -> bool:
-    if user_id in SUDO_USERS:
-        return True
-    for group_id in SUDO_GROUPS:
-        try:
-            member = await client.get_chat_member(group_id, user_id)
-            if member.status in ["administrator", "creator", "member"]:
-                return True
-        except Exception:
-            pass
-    return False
-
-# Decorator for sudo-only commands
-def sudo_only(func):
-    async def wrapper(client, message):
-        if not await is_user_sudo(client, message.from_user.id):
-            await message.reply_text("❌ You don't have permission to use this command.")
-            return
-        return await func(client, message)
-    return wrapper
-
-# Image Upscaling & Enhancement (Super Clear)
+# Image Upscaling and Enhancement
 def upscale_and_enhance(img: Image.Image) -> Image.Image:
     try:
         img_cv = np.array(img)
         img_cv = cv2.cvtColor(img_cv, cv2.COLOR_RGB2BGR)
         height, width = img_cv.shape[:2]
-
-        # 4x Upscaling using Lanczos4
-        upscaled = cv2.resize(img_cv, (width * 4, height * 4), interpolation=cv2.INTER_LANCZOS4)
-
-        # Sharpening using Unsharp Mask
-        sharpened = cv2.GaussianBlur(upscaled, (0, 0), 3)
-        sharpened = cv2.addWeighted(upscaled, 2.0, sharpened, -1.0, 0)
-
-        # Apply CLAHE for better contrast & details
-        lab = cv2.cvtColor(sharpened, cv2.COLOR_BGR2LAB)
-        l, a, b = cv2.split(lab)
-        clahe = cv2.createCLAHE(clipLimit=4.0, tileGridSize=(8, 8))
-        l = clahe.apply(l)
-        lab = cv2.merge((l, a, b))
-        enhanced = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
-
+        
+        # 4x Upscaling using Super-Resolution
+        sr = cv2.dnn_superres.DnnSuperResImpl_create()
+        sr.readModel("EDSR_x4.pb")  # Use a pre-trained model
+        sr.setModel("edsr", 4)  # 4x upscaling
+        upscaled = sr.upsample(img_cv)
+        
         # Convert back to PIL
-        img_upscaled = Image.fromarray(cv2.cvtColor(enhanced, cv2.COLOR_BGR2RGB))
-
+        img_upscaled = Image.fromarray(cv2.cvtColor(upscaled, cv2.COLOR_BGR2RGB))
+        
+        # Apply Enhancements
+        img_upscaled = ImageEnhance.Sharpness(img_upscaled).enhance(11.5)  # Increase sharpness
+        img_upscaled = ImageEnhance.Contrast(img_upscaled).enhance(1.1)  # Increase contrast
+        img_upscaled = ImageEnhance.Color(img_upscaled).enhance(1.0)  # Boost colors
+        
         return img_upscaled
     except Exception as e:
         logger.error(f"Error in upscaling image: {e}")
@@ -106,7 +76,6 @@ async def close_callback(client, callback_query):
 
 # Image Processing: Upscale Image
 @bot.on_message(filters.photo)
-@sudo_only
 async def upscale_image(client: Client, message: Message):
     temp_dir = Path(tempfile.mkdtemp())
     img_path = temp_dir / "input.jpg"
@@ -136,4 +105,3 @@ async def upscale_image(client: Client, message: Message):
 # Start Bot
 logger.info("Bot is running...")
 bot.run()
-            
