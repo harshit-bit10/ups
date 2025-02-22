@@ -1,134 +1,123 @@
-import os
-import logging
+from pathlib import Path
 import asyncio
 import tempfile
 import shutil
 import random
 import string
+import numpy as np
+import onnxruntime as ort
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
-from realesrgan import RealESRGAN
 from PIL import Image
+from loguru import logger
 
-# Logging setup
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-# Bot API credentials
-API_ID = int(os.environ.get("API_ID", "29234663"))
-API_HASH = os.environ.get("API_HASH", "94235bdf61b1b42e67b113b031db5ba5")
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "8150798398:AAHdkI-g7U1A32B9IkKyLMvA8wf_dqqvOM")
-USE_CUDA = os.environ.get("USE_CUDA", "True") == "True"
+# Bot API Credentials
+API_ID = int("29234663")
+API_HASH = "94235bdf61b1b42e67b113b031db5ba5"
+BOT_TOKEN = "8150798398:AAHdkI-g7U1A32B9IkKyLMvA8wf_dqqvOM"
 
 # Initialize bot
 bot = Client("ImageUpscalerBot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
-# Define authorized users and groups
-sudo_users = {6066102279}  # Replace with actual user IDs for PM Access
-sudo_groups = {-1002337988665}  # Replace with actual group chat IDs For Group Chat Access
+# Sudo Users & Groups
+SUDO_USERS = {6066102279}  # Replace with actual user IDs
+SUDO_GROUPS = {-1002337988665}  # Replace with actual group IDs
 
-# Load RealESRGAN model
-model = RealESRGAN("cuda" if USE_CUDA else "cpu", scale=4)
-try:
-    model.load_weights("weights/RealESRGAN_x4.pth")
-    logging.info("Model loaded successfully.")
-except Exception as e:
-    logging.error(f"Error loading model: {e}")
+# Load ONNX Model
+MODEL_PATH = "weights/RealESRGAN_x4.onnx"
+logger.info("Loading ONNX model...")
+session = ort.InferenceSession(MODEL_PATH)
+logger.success("ONNX model loaded successfully.")
 
-
+# Generate Unique Filename
 def generate_unique_filename(extension="png"):
-    random_string = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
-    return f"SharkToonsIndia_{random_string}.{extension}"
+    return f"SharkToonsIndia_{''.join(random.choices(string.ascii_letters + string.digits, k=8))}.{extension}"
 
+# Check Sudo Access
 async def is_user_sudo(client, user_id):
-    # Check if the user is in the sudo_users list
-    if user_id in sudo_users:
+    if user_id in SUDO_USERS:
         return True
-
-    # Check if the user is a member of any of the sudo_groups
-    for group_id in sudo_users:
+    for group_id in SUDO_GROUPS:
         try:
-            user_id = await client.user_id(user_id)
-            # Allow access if the user is found in the group
-            return True  # If the user is found in the group, grant access
-        except Exception as e:
-            print(f"Error checking group membership for group {user_id}: {e}")
-
+            await client.get_chat_member(group_id, user_id)
+            return True
+        except:
+            pass
     return False
 
-    # Check if the user is a member of any of the sudo_groups
-    for group_id in sudo_groups:
-        try:
-            chat_member = await client.get_chat_member(group_id, user_id)
-            # Allow access if the user is found in the group
-            return True  # If the user is found in the group, grant access
-        except Exception as e:
-            print(f"Error checking group membership for group {group_id}: {e}")
-
-    return False
-
+# Sudo-Only Decorator
 def sudo_only(func):
     async def wrapper(client, message):
         if not await is_user_sudo(client, message.from_user.id):
-            await message.reply_text("You do not have permission to use this command.")
+            await message.reply_text("❌ You don't have permission to use this command.")
             return
         return await func(client, message)
     return wrapper
+
+# Upscale Image with ONNX
+def upscale_image_onnx(image: Image.Image) -> Image.Image:
+    img = np.array(image).astype(np.float32) / 255.0  # Normalize
+    img = np.expand_dims(img.transpose(2, 0, 1), axis=0)  # Convert to (1,3,H,W)
     
+    # Run model inference
+    output = session.run(None, {"input": img})[0]
+    
+    # Post-process output
+    output = (output[0] * 255).clip(0, 255).astype(np.uint8)
+    output = output.transpose(1, 2, 0)
+    
+    return Image.fromarray(output)
+
+# Start Command
 @bot.on_message(filters.command("start"))
 async def start(client, message):
-    welcome_text = (
-        "<b>✨ Welcome to SharkToonsIndia Bot!</b>\n\n"
-        "👋 Send me an image and I will enhance it with AI!\n\n"
-        "🚀 <b>Let's get started!</b>\n\n"
-        "🔹 Developer: <a href='https://t.me/SupremeYoriichi'>Yoriichi</a>\n"
-        "🔹 Channel: <a href='https://t.me/SharkToonsIndia'>SharkToonsIndia</a>"
-    )
-    inline_keyboard = InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("Developer", url="https://t.me/SupremeYoriichi"),
-            InlineKeyboardButton("Channel", url="https://t.me/SharkToonsIndia")
-        ],
-        [InlineKeyboardButton("Close", callback_data="close")]
-    ])
     await message.reply_photo(
         photo="https://telegra.ph/Shinobuv3-01-28",
-        caption=welcome_text,
-        reply_markup=inline_keyboard
+        caption="<b>✨ Welcome to SharkToonsIndia Bot!</b>\n\n🚀 Send an image to enhance it with AI!",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("Developer", url="https://t.me/SupremeYoriichi"),
+             InlineKeyboardButton("Channel", url="https://t.me/SharkToonsIndia")],
+            [InlineKeyboardButton("Close", callback_data="close")]
+        ])
     )
 
-
+# Close Button
 @bot.on_callback_query(filters.regex("close"))
 async def close_callback(client, callback_query):
     await callback_query.message.delete()
 
-
+# Process Image Upscaling
 @bot.on_message(filters.photo)
 @sudo_only
 async def upscale_image(client: Client, message: Message):
-    temp_dir = tempfile.mkdtemp()
-    img_path = os.path.join(temp_dir, "input.jpg")
-    upscaled_path = os.path.join(temp_dir, generate_unique_filename("png"))
+    temp_dir = Path(tempfile.mkdtemp())
+    img_path = temp_dir / "input.jpg"
+    upscaled_path = temp_dir / generate_unique_filename("png")
+
     try:
         msg = await message.reply_text("⏳ Downloading image...")
-        await message.download(img_path)
-        await msg.edit_text("🔄 Enhancing the image with AI...")
-        
+        await message.download(str(img_path))
+        await msg.edit_text("🔄 Enhancing image with AI...")
+
+        # Load & Upscale Image
         img = Image.open(img_path).convert("RGB")
-        upscaled_img = model.enhance(img)
+        upscaled_img = upscale_image_onnx(img)
         upscaled_img.save(upscaled_path)
-        
+
         await msg.edit_text("✅ Image enhanced successfully! Uploading...")
         await message.reply_document(
-            document=upscaled_path, 
-            caption=f"🖼️ Enhanced Image by SharkToonsIndia - {os.path.basename(upscaled_path)}"
+            document=str(upscaled_path),
+            caption=f"🖼️ Enhanced Image by SharkToonsIndia - {upscaled_path.name}"
         )
         await msg.delete()
+
     except Exception as e:
-        logging.error(f"Error: {e}")
+        logger.error(f"Error: {e}")
         await message.reply_text("❌ An error occurred while processing your image.")
+
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
 
-
-logging.info("Bot is running...")
+logger.info("Bot is running...")
 bot.run()
+    
