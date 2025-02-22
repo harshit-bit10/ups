@@ -14,35 +14,7 @@ from loguru import logger
 # Bot API Credentials
 API_ID = 29234663  # Replace with your API ID
 API_HASH = "94235bdf61b1b42e67b113b031db5ba5"
-BOT_TOKEN = "7234330421:AAG4u7eG8rttkqX7jZxN-n2sfNG2yd7bsPE"
-
-# Initialize bot
-bot = Client("ImageUpscalerBot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
-
-# Sudo Users & Groups (Admins)
-SUDO_USERS = {6066102279}  # Replace with actual user IDs
-SUDO_GROUPS = {-1002337988665}  # Replace with actual group IDs
-
-logger.info("Bot is starting...")
-
-# Utility function to generate a unique filename
-from pathlib import Path
-import asyncio
-import tempfile
-import shutil
-import random
-import string
-import cv2
-import numpy as np
-from pyrogram import Client, filters
-from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
-from PIL import Image, ImageEnhance
-from loguru import logger
-
-# Bot API Credentials
-API_ID = 29234663  # Replace with your API ID
-API_HASH = "94235bdf61b1b42e67b113b031db5ba5"
-BOT_TOKEN = "7234330421:AAG4u7eG8rttkqX7JZxN-n2sfNG2yd7bsPE"
+BOT_TOKEN = "7234330421:AAGifV2ifYjZAbkgPPkkaQuXSGvzDv2bj4U"
 
 # Initialize bot
 bot = Client("ImageUpscalerBot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
