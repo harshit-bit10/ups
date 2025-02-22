@@ -65,7 +65,7 @@ def upscale_and_enhance(img: Image.Image) -> Image.Image:
         img_upscaled = Image.fromarray(cv2.cvtColor(upscaled, cv2.COLOR_BGR2RGB))
         
         # Apply Enhancements
-        img_upscaled = ImageEnhance.Sharpness(img_upscaled).enhance(3.4)  # Increase sharpness
+        img_upscaled = ImageEnhance.Sharpness(img_upscaled).enhance(5.0)  # Increase sharpness
         img_upscaled = ImageEnhance.Contrast(img_upscaled).enhance(1.3)  # Increase contrast
         img_upscaled = ImageEnhance.Color(img_upscaled).enhance(1.0)  # Slightly boost colors
         
