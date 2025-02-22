@@ -104,32 +104,36 @@ async def close_callback(client, callback_query):
 # Image Processing: Upscale Image
 @bot.on_message(filters.photo)
 @sudo_only
-async def upscale_image(client: Client, message: Message):
-    temp_dir = Path(tempfile.mkdtemp())
-    img_path = temp_dir / "input.jpg"
-    upscaled_path = temp_dir / generate_unique_filename("png")
-
+async def upscale_image_enhanced(img: Image.Image) -> Image.Image:
     try:
-        msg = await message.reply_text("⏳ Downloading image...")
-        await message.download(str(img_path))
+        loop = asyncio.get_running_loop()
+        img_cv = np.array(img)
+        img_cv = cv2.cvtColor(img_cv, cv2.COLOR_RGB2BGR)
 
-        await msg.edit_text("🔄 Enhancing image...")
-        img = Image.open(img_path).convert("RGB")
+        height, width = img_cv.shape[:2]
 
-        upscaled_img = await upscale_image_enhanced(img)
-        upscaled_img.save(upscaled_path)
-
-        await msg.edit_text("✅ Image enhanced successfully! Uploading...")
-        await message.reply_document(
-            document=str(upscaled_path),
-            caption=f"🖼️ Enhanced Image by SharkToonsIndia - {upscaled_path.name}"
+        # Use asyncio.to_thread() for non-blocking execution
+        upscaled = await asyncio.to_thread(
+            cv2.resize, img_cv, (width * 4, height * 4), cv2.INTER_LANCZOS4
         )
-        await msg.delete()
+
+        # Convert back to PIL format
+        img_upscaled = Image.fromarray(cv2.cvtColor(upscaled, cv2.COLOR_BGR2RGB))
+
+        # Apply final enhancements in a non-blocking way
+        async def enhance_image(image: Image.Image) -> Image.Image:
+            image = await asyncio.to_thread(ImageEnhance.Sharpness(image).enhance, 2.0)
+            image = await asyncio.to_thread(ImageEnhance.Contrast(image).enhance, 1.2)
+            image = await asyncio.to_thread(ImageEnhance.Color(image).enhance, 1.1)
+            return image
+
+        img_upscaled = await enhance_image(img_upscaled)
+
+        return img_upscaled
     except Exception as e:
-        logger.error(f"Processing error: {e}")
-        await message.reply_text("❌ Upscaling failed! Ensure the image is real and supported.")
-    finally:
-        shutil.rmtree(temp_dir, ignore_errors=True)
+        logger.error(f"Error in upscaling image: {e}")
+        raise Exception("Upscaling failed! Ensure the image is real and supported.")
+
 
 # Start Bot
 logger.info("Bot is running...")
