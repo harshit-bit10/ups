@@ -122,6 +122,4 @@ async def upscale_image(client: Client, message: Message):
 
 logger.info("Bot is running...")
 bot.run()
-ning...")
-bot.run()
-    
+
