@@ -51,7 +51,7 @@ def sudo_only(func):
         return await func(client, message)
     return wrapper
 
-# Asynchronous image upscaling function
+# Asynchronous image upscaling function (Minimal color change, sharper details)
 async def upscale_image_enhanced(img_path: Path) -> Path:
     try:
         loop = asyncio.get_running_loop()
@@ -63,19 +63,23 @@ async def upscale_image_enhanced(img_path: Path) -> Path:
 
         height, width = img_cv.shape[:2]
 
-        # Upscale using Lanczos4 for high-quality resizing
+        # Upscale using Lanczos4 (High-quality resizing)
         upscaled = await asyncio.to_thread(
             cv2.resize, img_cv, (width * 4, height * 4), interpolation=cv2.INTER_LANCZOS4
+        )
+
+        # Apply a bilateral filter to reduce artifacts and enhance edges
+        upscaled = await asyncio.to_thread(
+            cv2.bilateralFilter, upscaled, 9, 75, 75
         )
 
         # Convert back to PIL
         img_upscaled = Image.fromarray(cv2.cvtColor(upscaled, cv2.COLOR_BGR2RGB))
 
-        # Apply image enhancements asynchronously
+        # Apply enhancements asynchronously
         async def enhance_image(image: Image.Image) -> Image.Image:
-            image = await asyncio.to_thread(ImageEnhance.Sharpness(image).enhance, 2.0)
-            image = await asyncio.to_thread(ImageEnhance.Contrast(image).enhance, 1.2)
-            image = await asyncio.to_thread(ImageEnhance.Color(image).enhance, 1.1)
+            image = await asyncio.to_thread(ImageEnhance.Sharpness(image).enhance, 3.5)  # More sharpness
+            image = await asyncio.to_thread(ImageEnhance.Contrast(image).enhance, 1.1)  # Slight contrast boost
             return image
 
         img_upscaled = await enhance_image(img_upscaled)
@@ -142,4 +146,3 @@ async def upscale_image(client: Client, message: Message):
 # Start Bot
 logger.info("Bot is running...")
 bot.run()
-        
