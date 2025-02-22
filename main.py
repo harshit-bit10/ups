@@ -1,4 +1,3 @@
-from pathlib import Path
 import asyncio
 import tempfile
 import shutil
@@ -6,6 +5,7 @@ import random
 import string
 import cv2
 import numpy as np
+from pathlib import Path
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from PIL import Image, ImageEnhance
@@ -51,29 +51,40 @@ def sudo_only(func):
         return await func(client, message)
     return wrapper
 
-# Image Upscaling with Better Clarity & Deepness
-def upscale_image_enhanced(img: Image.Image) -> Image.Image:
+# Asynchronous image upscaling function
+async def upscale_image_enhanced(img_path: Path) -> Path:
     try:
+        loop = asyncio.get_running_loop()
+        img = await asyncio.to_thread(Image.open, img_path)
+        img = img.convert("RGB")
+        
         img_cv = np.array(img)
         img_cv = cv2.cvtColor(img_cv, cv2.COLOR_RGB2BGR)
 
-        # Increase resolution using bicubic interpolation
         height, width = img_cv.shape[:2]
-        upscaled = cv2.resize(img_cv, (width * 4, height * 4), interpolation=cv2.INTER_CUBIC)
 
-        # Enhance Clarity: Apply Unsharp Masking
-        gaussian = cv2.GaussianBlur(upscaled, (0, 0), 3)
-        sharpened = cv2.addWeighted(upscaled, 1.5, gaussian, -0.5, 0)
+        # Upscale using Lanczos4 for high-quality resizing
+        upscaled = await asyncio.to_thread(
+            cv2.resize, img_cv, (width * 4, height * 4), interpolation=cv2.INTER_LANCZOS4
+        )
 
-        # Convert back to PIL format
-        img_upscaled = Image.fromarray(cv2.cvtColor(sharpened, cv2.COLOR_BGR2RGB))
+        # Convert back to PIL
+        img_upscaled = Image.fromarray(cv2.cvtColor(upscaled, cv2.COLOR_BGR2RGB))
 
-        # Apply final enhancements
-        img_upscaled = ImageEnhance.Sharpness(img_upscaled).enhance(35.0)
-        img_upscaled = ImageEnhance.Contrast(img_upscaled).enhance(1.1)
-        img_upscaled = ImageEnhance.Color(img_upscaled).enhance(1.0)  # Boost colors slightly
+        # Apply image enhancements asynchronously
+        async def enhance_image(image: Image.Image) -> Image.Image:
+            image = await asyncio.to_thread(ImageEnhance.Sharpness(image).enhance, 2.0)
+            image = await asyncio.to_thread(ImageEnhance.Contrast(image).enhance, 1.2)
+            image = await asyncio.to_thread(ImageEnhance.Color(image).enhance, 1.1)
+            return image
 
-        return img_upscaled
+        img_upscaled = await enhance_image(img_upscaled)
+
+        # Save upscaled image
+        upscaled_path = img_path.parent / generate_unique_filename("png")
+        await asyncio.to_thread(img_upscaled.save, upscaled_path)
+
+        return upscaled_path
     except Exception as e:
         logger.error(f"Error in upscaling image: {e}")
         raise Exception("Upscaling failed! Ensure the image is real and supported.")
@@ -104,38 +115,31 @@ async def close_callback(client, callback_query):
 # Image Processing: Upscale Image
 @bot.on_message(filters.photo)
 @sudo_only
-async def upscale_image_enhanced(img: Image.Image) -> Image.Image:
+async def upscale_image(client: Client, message: Message):
+    temp_dir = Path(tempfile.mkdtemp())
+    img_path = temp_dir / "input.jpg"
+
     try:
-        loop = asyncio.get_running_loop()
-        img_cv = np.array(img)
-        img_cv = cv2.cvtColor(img_cv, cv2.COLOR_RGB2BGR)
+        msg = await message.reply_text("⏳ Downloading image...")
+        await message.download(str(img_path))
+        await msg.edit_text("🔄 Enhancing image...")
 
-        height, width = img_cv.shape[:2]
+        # Process the image asynchronously
+        upscaled_path = await upscale_image_enhanced(img_path)
 
-        # Use asyncio.to_thread() for non-blocking execution
-        upscaled = await asyncio.to_thread(
-            cv2.resize, img_cv, (width * 4, height * 4), cv2.INTER_LANCZOS4
+        await msg.edit_text("✅ Image enhanced successfully! Uploading...")
+        await message.reply_document(
+            document=str(upscaled_path),
+            caption=f"🖼️ Enhanced Image by SharkToonsIndia - {upscaled_path.name}"
         )
-
-        # Convert back to PIL format
-        img_upscaled = Image.fromarray(cv2.cvtColor(upscaled, cv2.COLOR_BGR2RGB))
-
-        # Apply final enhancements in a non-blocking way
-        async def enhance_image(image: Image.Image) -> Image.Image:
-            image = await asyncio.to_thread(ImageEnhance.Sharpness(image).enhance, 2.0)
-            image = await asyncio.to_thread(ImageEnhance.Contrast(image).enhance, 1.2)
-            image = await asyncio.to_thread(ImageEnhance.Color(image).enhance, 1.1)
-            return image
-
-        img_upscaled = await enhance_image(img_upscaled)
-
-        return img_upscaled
+        await msg.delete()
     except Exception as e:
-        logger.error(f"Error in upscaling image: {e}")
-        raise Exception("Upscaling failed! Ensure the image is real and supported.")
-
+        logger.error(f"Processing error: {e}")
+        await message.reply_text("❌ Upscaling failed! Ensure the image is real and supported.")
+    finally:
+        shutil.rmtree(temp_dir, ignore_errors=True)
 
 # Start Bot
 logger.info("Bot is running...")
 bot.run()
-            
+        
