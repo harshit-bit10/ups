@@ -63,13 +63,13 @@ def upscale_image_enhanced(img: Image.Image) -> Image.Image:
 
         # Enhance Clarity: Apply Unsharp Masking
         gaussian = cv2.GaussianBlur(upscaled, (0, 0), 3)
-        sharpened = cv2.addWeighted(upscaled, 2.0, gaussian, -0.5, 0)
+        sharpened = cv2.addWeighted(upscaled, 1.5, gaussian, -0.5, 0)
 
         # Convert back to PIL format
         img_upscaled = Image.fromarray(cv2.cvtColor(sharpened, cv2.COLOR_BGR2RGB))
 
         # Apply final enhancements
-        img_upscaled = ImageEnhance.Sharpness(img_upscaled).enhance(12.0)
+        img_upscaled = ImageEnhance.Sharpness(img_upscaled).enhance(20.0)
         img_upscaled = ImageEnhance.Contrast(img_upscaled).enhance(1.1)
         img_upscaled = ImageEnhance.Color(img_upscaled).enhance(1.0)  # Boost colors slightly
 
