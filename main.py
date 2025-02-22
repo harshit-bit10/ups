@@ -78,7 +78,7 @@ async def upscale_image_enhanced(img_path: Path) -> Path:
 
         # Apply enhancements asynchronously
         async def enhance_image(image: Image.Image) -> Image.Image:
-            image = await asyncio.to_thread(ImageEnhance.Sharpness(image).enhance, 14.5)  # More sharpness
+            image = await asyncio.to_thread(ImageEnhance.Sharpness(image).enhance, 25.5)  # More sharpness
             image = await asyncio.to_thread(ImageEnhance.Contrast(image).enhance, 1.2)  # Slight contrast boost
             return image
 
