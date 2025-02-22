@@ -70,7 +70,7 @@ async def upscale_image_enhanced(img_path: Path) -> Path:
 
         # Apply a bilateral filter to reduce artifacts and enhance edges
         upscaled = await asyncio.to_thread(
-            cv2.bilateralFilter, upscaled, 15, 150, 150
+            cv2.bilateralFilter, upscaled, 18, 180, 180
         )
 
         # Convert back to PIL
@@ -78,7 +78,7 @@ async def upscale_image_enhanced(img_path: Path) -> Path:
 
         # Apply enhancements asynchronously
         async def enhance_image(image: Image.Image) -> Image.Image:
-            image = await asyncio.to_thread(ImageEnhance.Sharpness(image).enhance, 35.5)  # More sharpness
+            image = await asyncio.to_thread(ImageEnhance.Sharpness(image).enhance, 21.5)  # More sharpness
             image = await asyncio.to_thread(ImageEnhance.Contrast(image).enhance, 1.0)  # Slight contrast boost
             return image
 
