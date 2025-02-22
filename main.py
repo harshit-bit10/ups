@@ -8,7 +8,7 @@ import cv2
 import numpy as np
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
-from PIL import Image, ImageEnhance
+from PIL import Image
 from loguru import logger
 
 # Bot API Credentials
@@ -19,13 +19,13 @@ BOT_TOKEN = "7335265361:AAGU69st_vK3kVZIy1lAYSOejGB8EaMgBxQ"
 # Initialize bot
 bot = Client("ImageUpscalerBot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
-# Sudo Users & Groups (Admins)
-SUDO_USERS = {6066102279}  # Replace with actual user IDs
-SUDO_GROUPS = {-1002337988665}  # Replace with actual group IDs
+# Sudo Users & Groups
+SUDO_USERS = {6066102279}
+SUDO_GROUPS = {-1002337988665}
 
 logger.info("Bot is starting...")
 
-# Utility function to generate a unique filename
+# Generate a unique filename
 def generate_unique_filename(extension="png") -> str:
     return f"SharkToonsIndia_{''.join(random.choices(string.ascii_letters + string.digits, k=8))}.{extension}"
 
@@ -51,26 +51,24 @@ def sudo_only(func):
         return await func(client, message)
     return wrapper
 
-# Image Upscaling & Enhancement (without AI)
+# Image Upscaling & Enhancement (Super Clear)
 def upscale_and_enhance(img: Image.Image) -> Image.Image:
     try:
         img_cv = np.array(img)
         img_cv = cv2.cvtColor(img_cv, cv2.COLOR_RGB2BGR)
         height, width = img_cv.shape[:2]
 
-        # 4x Upscaling using Lanczos4 (better details)
+        # 4x Upscaling using Lanczos4
         upscaled = cv2.resize(img_cv, (width * 4, height * 4), interpolation=cv2.INTER_LANCZOS4)
 
-        # Apply Gaussian Blur to reduce pixelation
-        blurred = cv2.GaussianBlur(upscaled, (3, 3), 0)
+        # Sharpening using Unsharp Mask
+        sharpened = cv2.GaussianBlur(upscaled, (0, 0), 3)
+        sharpened = cv2.addWeighted(upscaled, 2.0, sharpened, -1.0, 0)
 
-        # Unsharp Mask to enhance edges (sharpening)
-        sharpened = cv2.addWeighted(upscaled, 1.5, blurred, -0.5, 0)
-
-        # Apply CLAHE (Contrast Limited Adaptive Histogram Equalization) for contrast
+        # Apply CLAHE for better contrast & details
         lab = cv2.cvtColor(sharpened, cv2.COLOR_BGR2LAB)
         l, a, b = cv2.split(lab)
-        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+        clahe = cv2.createCLAHE(clipLimit=4.0, tileGridSize=(8, 8))
         l = clahe.apply(l)
         lab = cv2.merge((l, a, b))
         enhanced = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
@@ -138,4 +136,4 @@ async def upscale_image(client: Client, message: Message):
 # Start Bot
 logger.info("Bot is running...")
 bot.run()
-        
+            
