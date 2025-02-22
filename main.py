@@ -14,7 +14,7 @@ from loguru import logger
 # Bot API Credentials
 API_ID = 29234663  # Replace with your API ID
 API_HASH = "94235bdf61b1b42e67b113b031db5ba5"
-BOT_TOKEN = "7234330421:AAGifV2ifYjZAbkgPPkkaQuXSGvzDv2bj4U"
+BOT_TOKEN = "7335265361:AAGU69st_vK3kVZIy1lAYSOejGB8EaMgBxQ"
 
 # Initialize bot
 bot = Client("ImageUpscalerBot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
