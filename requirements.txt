@@ -2,3 +2,4 @@ pyrogram
 realesrgan
 pillow
 asyncio
+torchvision
